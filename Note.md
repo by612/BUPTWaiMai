@@ -677,3 +677,118 @@ upstream webservers{
 1. 将密码加密后存储，提高安全性
 2. 使用MD5加密方式对密码加密
 
+## Swagger
+Swagger是一个规范和完整的框架，用于生成、描述、调用和可视化RESTful风格的Web服务，他的主要作用是：
+1. 使得前后端分离开发更加方便，有利于团队协作
+2. 在线自动生成接口文档，降低后端开发人员编写接口文档的负担
+3. 功能测试
+
+knife4j是为Java MVC框架集成Swagger生成API文档的增强解决方案，前身是swagger-bootstrap-ui，取名knife4j是希望它能像一把匕首一样小巧、轻量，并且功能强悍
+
+**使用步骤**
+1. 导入knife4j的Maven坐标，在pom.xml中添加依赖
+
+
+    <dependency>
+        <groupId>com.github.xiaoymin</groupId>
+        <artifactId>knife4j-spring-boot-starter</artifacId>
+    </dependency>
+
+2. 在配置类WebMvcConfiguration.java中加入knife4j相关配置
+
+
+        @Bean
+    public Docket docket() {
+        ApiInfo apiInfo = new ApiInfoBuilder()
+                .title("北邮外卖项目接口文档")
+                .version("2.0")
+                .description("北邮外卖项目接口文档")
+                .build();
+        Docket docket = new Docket(DocumentationType.SWAGGER_2)
+                .apiInfo(apiInfo)
+                .select()
+                .apis(RequestHandlerSelectors.basePackage("com.sky.controller"))
+                .paths(PathSelectors.any())
+                .build();
+        return docket;
+    }
+
+3. 设置静态资源映射，否则接口文档页面无法访问WebMvcConfiguration.java
+
+
+        protected void addResourceHandlers(ResourceHandlerRegistry registry) {
+            registry.addResourceHandler("/doc.html").addResourceLocations("classpath:/META-INF/resources/");
+            registry.addResourceHandler("/webjars/**").addResourceLocations("classpath:/META-INF/resources/webjars/");
+        }
+
+4. 访问测试，接口文档访问路径为http://ip:port/doc.html（http://localhost:8080/doc.html）
+
+
+**Swagger常用注解**
+
+| **注解**          | **说明**                                               |
+| ----------------- | ------------------------------------------------------ |
+| @Api              | 用在类上，例如Controller，表示对类的说明               |
+| @ApiModel         | 用在类上，例如entity、DTO、VO                          |
+| @ApiModelProperty | 用在属性上，描述属性信息                               |
+| @ApiOperation     | 用在方法上，例如Controller的方法，说明方法的用途、作用 |
+
+使用上述注解生成可读性更好的接口文档
+- 在sky-pojo模块中，EmployeeLoginDTO.java：
+
+
+    package com.sky.dto;
+    
+    import io.swagger.annotations.ApiModel;
+    import io.swagger.annotations.ApiModelProperty;
+    import lombok.Data;
+    
+    import java.io.Serializable;
+    
+    @Data
+    @ApiModel(description = "员工登录时传递的数据模型")
+    public class EmployeeLoginDTO implements Serializable {
+    
+        @ApiModelProperty("用户名")
+        private String username;
+    
+        @ApiModelProperty("密码")
+        private String password; 
+    }
+
+-在sky-pojo模块中，EmployeeLoginVo.java：
+
+
+    package com.sky.vo;
+    
+    import io.swagger.annotations.ApiModel;
+    import io.swagger.annotations.ApiModelProperty;
+    import lombok.AllArgsConstructor;
+    import lombok.Builder;
+    import lombok.Data;
+    import lombok.NoArgsConstructor;
+    
+    import java.io.Serializable;
+    
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @ApiModel(description = "员工登录返回的数据格式")
+    public class EmployeeLoginVO implements Serializable {
+    
+        @ApiModelProperty("主键值")
+        private Long id;
+    
+        @ApiModelProperty("用户名")
+        private String userName;
+    
+        @ApiModelProperty("姓名")
+        private String name;
+    
+        @ApiModelProperty("jwt令牌")
+        private String token;
+    }
+
+- 在sky-server模块中，EmployeeController.admin：
+
