@@ -792,3 +792,263 @@ knife4j是为Java MVC框架集成Swagger生成API文档的增强解决方案，�
 
 - 在sky-server模块中，EmployeeController.admin：
 
+
+# Day2
+
+## 新增员工
+### 需求分析和设计
+后台系统中可以管理员工信息，通过新增员工来添加后台系统用户
+当填写完表单信息，点击"保存"按钮后, 会提交该表单的数据到服务端，在服务端中需要接受数据，然后将数据保存至数据库中
+
+**注意事项**
+1. 账号必须是唯一的
+2. 手机号为合法的11位手机号码
+3. 身份证号为合法的18位身份找号码
+4. 密码默认为123456
+
+**接口设计**
+- 管理端发出的请求，统一使用/admin作为前缀
+- 用户端发出的请求，统一使用/user作为前缀
+
+**表设计**
+新增员工，其实就是将我们新增页面录入的员工数据插入到employee表
+
+| **字段名**  | **数据类型** | **说明**     | **备注**    |
+| ----------- | ------------ | ------------ | ----------- |
+| id          | bigint       | 主键         | 自增        |
+| name        | varchar(32)  | 姓名         |             |
+| username    | varchar(32)  | 用户名       | 唯一        |
+| password    | varchar(64)  | 密码         |             |
+| phone       | varchar(11)  | 手机号       |             |
+| sex         | varchar(2)   | 性别         |             |
+| id_number   | varchar(18)  | 身份证号     |             |
+| status      | Int          | 账号状态     | 1正常 0锁定 |
+| create_time | Datetime     | 创建时间     |             |
+| update_time | datetime     | 最后修改时间 |             |
+| create_user | bigint       | 创建人id     |             |
+| update_user | bigint       | 最后修改人id |             |
+
+其中，employee表中的status字段已经设置了默认值1，表示状态正常
+
+### 代码开发
+#### 设计DTO类
+根据新增员工接口设计对应的DTO
+当前端提交的数据和实体类中对应的属性差别比较大时，建议使用DTO来封装数据
+
+前端传递参数列表：
+
+| 名称       | 类型      | 是否必填 | 默认值     | 其他信息      |
+|------------|-----------|----------|------------|---------------|
+| id         | integer   | 必填     |            | format: int64 |
+| idNumber   | string    | 必填     |            |               |
+| name       | string    | 必填     |            |               |
+| phone      | string    | 必填     |            |               |
+| sex        | string    | 必填     |            | 性别          |
+| username   | string    | 必填     |            | 用户名        |
+
+由于上述传入参数和实体类有较大差别，所以自定义DTO类
+
+    package com.sky.dto;
+    
+    import lombok.Data;
+    import java.io.Serializable;
+    
+    @Data
+    public class EmployeeDTO implements Serializable {
+    
+        private Long id;
+    
+        private String username;
+    
+        private String name;
+    
+        private String phone;
+    
+        private String sex;
+    
+        private String idNumber;
+    }
+
+#### Controller层
+在EmployeeController中创建新增员工方法，接收前端提交的参数
+
+    /**
+     * 新增员工
+     * @param employeeDTO
+     * @return
+     */
+    @PostMapping
+    @ApiOperation("新增员工")
+    public Result save(@RequestBody EmployeeDTO employeeDTO) {
+        log.info("新增员工：{}", employeeDTO);
+        employeeService.save(employeeDTO);
+        return Result.success();
+    }
+
+Result类（com/sky/result/Result.java）定义了后端统一返回结果格式
+
+#### Service层接口
+在EmployeeService接口中声明新增员工方法
+
+    /**
+     * 新增员工
+     * @param employeeDTO
+     */
+    void save(EmployeeDTO employeeDTO);
+
+#### Service层实现类
+在EmployeeServiceImpl中实现新增员工方法
+
+        @Override
+    public void save(EmployeeDTO employeeDTO) {
+        Employee employee = new Employee();
+
+        // 对象属性拷贝
+        BeanUtils.copyProperties(employeeDTO, employee);
+
+        // 设置账号的状态，默认正常状态，1表示正常，0表示锁定
+        employee.setStatus(StatusConstant.ENABLE);
+
+        // 设置密码，默认密码为123456
+        employee.setPassword(DigestUtils.md5DigestAsHex(PasswordConstant.DEFAULT_PASSWORD.getBytes()));
+
+        // 设置当前记录的创建时间和修改时间
+        employee.setCreateTime(LocalDateTime.now());
+        employee.setUpdateTime(LocalDateTime.now());
+
+        // 设置当前记录创建人ID和修改人ID
+        empolyee.setCreateUser(10L); // TODO:后续修改
+        empolyee.setUpdateUser(10L);
+
+        employeeMapper.insert(employee); // TODO:后续定义
+    }
+
+在sky-common模块com.sky.constant包下已定义StatusConstant.java
+
+    package com.sky.constant;
+
+    /**
+    * 状态常量，启用或者禁用
+    */
+    public class StatusConstant {
+        //启用
+        public static final Integer ENABLE = 1;
+    
+        //禁用
+        public static final Integer DISABLE = 0;
+    }
+
+#### Mapper层
+在EmployeeMapper中声明insert方法
+
+    /**
+     * 插入员工数据
+     * @param employee
+     */
+    @Insert("insert into employee(name, username, password, phone, sex, id_number, create_time, create_user, update_user, status)"
+    + "values " + "(#{name}, #{username}, #{phone}, #{sex}, #{idNumber}, #{createTime}, #{updateTime}, #{createUser}, #{updateUser}, #{status})")
+    void insert(Employee employee);
+    
+
+在application.yml中已开启驼峰命名，故id_number和idNumber可对应
+
+    mybatis:
+    #mapper配置文件
+    mapper-locations: classpath:mapper/*.xml
+    type-aliases-package: com.sky.entity
+    configuration:
+    #开启驼峰命名
+    map-underscore-to-camel-case: true
+
+### 功能测试
+#### 通过接口文档测试
+启动服务，访问http://localhost:8080/doc.html，进入新增员工接口
+初次调试时由于JWT令牌校验失败，导致EmployeeController的save方法没有被调用，需要调用员工登录接口获得一个合法的JWT令牌，并将合法的JWT令牌添加到全局参数中
+
+### 代码完善
+目前，程序存在的问题主要有两个：
+- 当录入的用户名已在表中时，抛出异常后没有进行处理
+- 新增员工时，创建人ID和修改人ID为固定值
+
+**完善问题一**
+在employee表中，username已经添加了唯一约束，不能重复，通过全局异常处理器来处理
+
+进入到sky-server模块，com/sky/handler/路径下，GlobalExceptionHandler.java添加方法
+
+    /**
+     * 处理SQL异常
+     *
+     * @param ex
+     * @return
+     */
+    @ExceptionHandler
+    public Result exceptionHandler(SQLIntegrityConstraintViolationException ex) {
+        // 重复输入键值'employee.idx_username'
+        String message = ex.getMessage();
+        if (message.contains("重复输入键值")) {
+            String[] split = message.split(" ");
+            String username = split[2];
+            String msg = username + MessageConstant.ALREADY_EXISTS;
+            return Result.error(msg);
+        } else {
+            return Result.error(message);
+        }
+    }
+
+进入到sky-common模块，在MessageConstant.java添加
+
+    public static final String ALREADY_EXISTS = "已存在";
+
+
+**完善问题二**
+新增员工时，创建人ID和修改人ID设置为固定值，需要通过某种方式动态获取当前登录员工的ID
+需要通过基于JWT（JSON Web Token）的动态方式认证和授权流程：
+- 首先，用户通过“用户认证”模块进行身份验证，生成“本地JWT Token”
+- 随后，该Token被发送到“授权服务器”进行验证，生成“生成JWT Token”
+- 在“请求拦截器”中，系统会检查请求头中携带的JWT Token，并将其发送到“授权服务”进行验证
+- 如果验证通过，会返回“验证成功”结果，并允许访问受保护的资源
+- 如果验证失败，则返回“验证失败”并拒绝访问
+- 员工登录成功后会生成JWT令牌并响应给前端
+
+
+    public class EmployeeController {
+        @Autowired
+        private EmployeeService employeeService;
+        @Autowired
+        private JwtProperties jwtProperties;
+    
+        /**
+         * 登录
+         *
+         * @param employeeLoginDTO
+         * @return
+         */
+        @PostMapping("/login")
+        @ApiOperation(value = "员工登录")
+        public Result<EmployeeLoginVO> login(@RequestBody EmployeeLoginDTO employeeLoginDTO) {
+            //.........
+    
+            //登录成功后，生成jwt令牌
+            Map<String, Object> claims = new HashMap<>();
+            claims.put(JwtClaimsConstant.EMP_ID, employee.getId());
+            String token = JwtUtil.createJWT(
+                    jwtProperties.getAdminSecretKey(),
+                    jwtProperties.getAdminTtl(),
+                    claims);
+
+            //............
+            return Result.success(employeeLoginVO);
+    }
+
+后续请求中，前端会携带JWT令牌，通过JWT令牌可以解析出当前登录员工ID：
+具体见JwtTokenAdminInterceptor.java
+
+**ThreadLocal**
+ThreadLocal并不是一个Thread，而是Thread的局部变量
+ThreadLocal为每个线程提供单独一份存储空间，具有线程隔离的效果，只有在线程内才能获取到对应的值，线程外则不能访问
+
+- `public void set(T value)`：设置当前线程的线程局部变量的值
+- `public T get()`：返回当前线程所对应的线程局部变量的值
+- `public void remove()`：移除当前线程的线程局部变量
+
+对ThreadLocal有了一定认识后，接下来继续解决问题二
