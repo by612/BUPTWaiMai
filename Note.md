@@ -1052,3 +1052,55 @@ ThreadLocal为每个线程提供单独一份存储空间，具有线程隔离的
 - `public void remove()`：移除当前线程的线程局部变量
 
 对ThreadLocal有了一定认识后，接下来继续解决问题二
+【图】
+
+在sky-common模块已经封装了ThreadLocal操作的工具类
+
+    package com.sky.context;
+
+    public class BaseContext {
+    
+        public static ThreadLocal<Long> threadLocal = new ThreadLocal<>();
+    
+        public static void setCurrentId(Long id) {
+            threadLocal.set(id);
+        }
+    
+        public static Long getCurrentId() {
+            return threadLocal.get();
+        }
+    
+        public static void removeCurrentId() {
+            threadLocal.remove();
+        }
+    
+    }
+
+在拦截器中解析出当前登录员工ID，并放入线程局部变量中：
+
+    // 2、校验令牌
+    try {
+        log.info("jwt校验:{}", token);
+        Claims claims = JwtUtil.parseJWT(jwtProperties.getAdminSecretKey(), token);
+        Long empId = Long.valueOf(claims.get(JwtClaimsConstant.EMP_ID).toString());
+        log.info("当前员工id：", empId);
+
+        BaseContext.setCurrentId(empId); // 新增：将用户ID存储到ThreadLoacl 
+
+        // 3、通过，放行
+        return true;
+    } catch (Exception ex) {
+        //4、不通过，响应401状态码
+        response.setStatus(401);
+        return false;
+    }
+
+在Service中获取线程局部变量中的值
+
+        // 设置当前记录创建人ID和修改人ID
+        // 新修改
+        employee.setCreateUser(BaseContext.getCurrentId());
+        employee.setUpdateUser(BaseContext.getCurrentId());
+        
+        employeeMapper.insert(employee);
+
