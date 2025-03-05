@@ -1104,3 +1104,149 @@ ThreadLocal为每个线程提供单独一份存储空间，具有线程隔离的
         
         employeeMapper.insert(employee);
 
+## 员工分页查询
+系统中的员工很多的时候，如果在一个页面中全部展示出来会显得比较乱，不便于查看，所以一般的系统中都会以分页的方式来展示列表数据
+而在我们的分页查询页面中，除了分页条件以外，还有一个查询条件"员工姓名"
+
+**业务规则**
+- 根据页码展示员工信息
+- 每页展示10条数据
+- 分页查询时可以根据需要输入员工姓名进行查询
+
+注意：
+- 请求参数类型为Query，不是json格式提交，在路径后直接拼接/admin/employee/page?name=zhangsan
+- 返回数据中records数组中使用Employee实体类对属性进行封装
+
+**设计DTO类**
+根据请求参数进行封装，在sky-pojo模块中，EmployeePageQueryDTO类：
+
+    @Data
+    public class EmployeePageQueryDTO implements Serializable {
+    
+        // 员工姓名
+        private String name;
+    
+        // 页码
+        private int page;
+    
+        // 每页显示记录数
+        private int pageSize;
+
+    }
+
+**封装PageResult**
+后面所有的分页查询统一封装为PageResult对象
+
+    /**
+     * 封装分页查询结果
+     */
+    @Data
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public class PageResult implements Serializable {
+    
+        private long total; // 总记录数
+    
+        private List records; // 当前页数据集合
+    
+    }
+
+员工信息分页查询后端返回的对象类型为Result
+
+
+    @Data
+    public class Result<T> implements Serializable {
+    
+        private Integer code; // 编码：1成功，0和其它数字为失败
+        private String msg; // 错误信息
+        private T data; // 数据
+        
+        public static <T> Result<T> success() {
+            Result<T> result = new Result<T>();
+            result.code = 1;
+            return result;
+        }
+        
+        public static <T> Result<T> success(T object) {
+            Result<T> result = new Result<T>();
+            result.data = object;
+            result.code = 1;
+            return result;
+        }
+        
+        public static <T> Result<T> error(String msg) {
+            Result result = new Result();
+            result.msg = msg;
+            result.code = 0;
+            return result;
+        } 
+    }
+
+**Controller层**
+在sky-server模块com.sky.controller.admin.EmployeeController中添加分页查询方法
+
+    /**
+     * 员工分页查询
+     * @param employeePageQueryDTO
+     * @return
+     */
+    @GetMapping("/Page")
+    @ApiOperation("员工分页查询")
+    public Result<PageResult> page(EmployeePageQueryDTO employeePageQueryDTO) {
+        log.info("员工分页查询，参数为：{}", employeePageQueryDTO);
+        PageResult pageResult = employeeService.pageQuery(employeePageQueryDTO); // TODO
+        return Result.success(pageResult);
+    }
+
+**Service层接口**
+在EmployeeService接口中声明pageQuery方法
+
+    /**
+     * 分页查询
+     * @param employeePageQueryDTO
+     * @return
+     */
+    PageResult pageQuery(EmployeePageQueryDTO employeePageQueryDTO);
+
+**Service层实现类**
+在EmployeeServiceImpl中实现pageQuery方法
+
+    public PageResult pageQuery(EmployeePageQueryDTO employeePageQueryDTO) {
+        // select * from employee limit 0, 10
+        // 开始分页查询
+        PageHelper.startPage(employeePageQueryDTO.getPage(), employeePageQueryDTO.getPageSize());
+
+        Page<Employee> page = employeeMapper.pageQuery(employeePageQueryDTO);//后续定义
+
+        long total = page.getTotal();
+        List<Employee> records = page.getResult();
+
+        return new PageResult(total, records);
+    }
+
+此处使用Mybatis的分页插件PageHelper来简化分页代码的开发，底层基于Mybatis的拦截器实现，故在pom.xml文中添加依赖
+
+    <dependency>
+        <groupId>com.github.pagehelper</groupId>
+        <artifactId>pagehelper-spring-boot-starter</artifactId>
+        <version>${pagehelper}</version>
+    </dependency>
+
+**Mapper层**
+在EmployeeMapper中声明pageQuery方法
+
+    Page<Employee> pageQuery(EmployeePageQueryDTO employeePageDTO);
+
+在src/main/resources/mapper/EmployeeMapper.xml中编写SQL
+
+    <select id="pageQuery" resultType="com.sky.entity.Employee">
+        select * from employee
+        <where>
+            <if test="name != null and name != ''">
+                and name like concat('%', #{name}, '%')
+            </if>>
+        </where>
+        >
+        order by create_time desc
+    </select>
+
