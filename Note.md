@@ -1250,3 +1250,21 @@ ThreadLocal为每个线程提供单独一份存储空间，具有线程隔离的
         order by create_time desc
     </select>
 
+**修复操作时间字段段问题**
+注意到操作时间字段显示有问题
+解决方式一：在WebMVCConfiguration中扩展SpringMVC的消息转换器，统一对日期类型进行格式处理
+
+    protected void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
+        log.info("扩展消息转换器...");
+
+        // 创建一个消息转换器对象
+        MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
+
+        // 需要为消息转换器设置一个对象转换器，对象转换器可以将Java对象序列化为JSON数据
+        converter.setObjectMapper(new JacksonObjectMapper());
+
+        // 将自己的消息转化器加入容器中
+        converters.add(0, converter);
+    }
+
+
