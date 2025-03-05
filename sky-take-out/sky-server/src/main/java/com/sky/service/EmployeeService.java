@@ -8,23 +8,21 @@ import com.sky.result.PageResult;
 
 public interface EmployeeService {
 
-    /**
-     * 员工登录
-     */
+    // 员工登录
     Employee login(EmployeeLoginDTO employeeLoginDTO);
 
-    /**
-     * 新增员工
-     */
+    // 新增员工
     void save(EmployeeDTO employeeDTO);
 
-    /**
-     * 分页查询
-     */
+    // 分页查询
     PageResult pageQuery(EmployeePageQueryDTO employeePageQueryDTO);
 
-    /**
-     * 启用禁用员工账号
-     */
+    // 启用禁用员工账号
     void startOrStop(Integer status, Long id);
+
+    // 根据ID查询员工
+    Employee getById(Long id);
+
+    // 编辑员工信息
+    void update(EmployeeDTO employeeDTO);
 }

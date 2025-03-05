@@ -1274,7 +1274,6 @@ ThreadLocal为每个线程提供单独一份存储空间，具有线程隔离的
     // public static final String DEFAULT_DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm";
     public static final String DEFAULT_TIME_FORMAT = "HH:mm:ss";
 
-
 ## 启用禁用员工账号
 在员工管理列表页面，可以对某个员工账号进行启用或者禁用操作。账号禁用的员工不能登录系统，启用后的员工可以正常登录
 如果某个员工账号状态为正常，则按钮显示为 "禁用"，如果员工账号状态为已禁用，则按钮显示为"启用"
@@ -1348,4 +1347,100 @@ ThreadLocal为每个线程提供单独一份存储空间，具有线程隔离的
         </set>
         where id = #{id}
     </update>
+
+## 编辑员工
+在员工管理列表页面点击 "编辑" 按钮，跳转到编辑页面，在编辑页面回显员工信息并进行修改，最后点击 "保存" 按钮完成编辑操作
+点击修改时，数据应该正常回显到修改页面
+
+**接口设计**
+1. 根据ID查询员工信息
+2. 编辑员工信息
+
+### 回显员工信息功能
+**Controller层**
+在EmployeeController中创建getById方法
+
+    /**
+     * 根据ID查询员工信息
+     */
+    @GetMapping("/{id}")
+    @ApiOperation("根据ID查询员工信息")
+    public Result<Employee> getById(@PathVariable Long id) {
+        Employee employee = employeeService.getById(id);
+        return Result.success(employee);
+    }
+
+**Service层接口**
+在EmployeeService接口中声明getById方法
+
+    /**
+     * 根据ID查询员工信息
+     */
+    @Override
+    public Employee getById(Long id) {
+        Employee employee = employeeMapper.getById(id);
+        employee.setPassword("****");
+        return null;
+    }
+
+**Service层实现类**
+
+    /**
+     * 根据ID查询员工
+     */
+    @Override
+    public Employee getById(Long id) {
+        Employee employee = employeeMapper.getById(id);
+        employee.setPassword("****");
+        return null;
+    }
+
+**Mapper层**
+在EmployeeMapper接口中声明getById方法
+
+    /**
+     * 根据ID查询员工信息
+     */
+    @Select("select * from employee where id = #{id}")
+    Employee getById(Long id);
+
+### 修改员工信息功能
+**Controller层**
+在EmployeeController中创建update方法
+
+    /**
+     * 编辑员工信息
+     */
+    @PutMapping
+    @ApiOperation("编辑员工信息")
+    public Result update(@RequestBody EmployeeDTO employeeDTO) {
+        log.info("编辑员工信息：{}", employeeDTO);
+        employeeService.update(employeeDTO);
+        return Result.success();
+    }
+
+**Service层接口**
+在EmployeeService接口中声明update方法
+
+    // 编辑员工信息
+    void update(EmployeeDTO employeeDTO);
+
+**Service层实现类**
+在EmployeeServiceImpl中实现update方法
+
+    @Override
+    public void update(EmployeeDTO employeeDTO) {
+        Employee employee = new Employee();
+        BeanUtils.copyProperties(employeeDTO, employee);
+        
+        employee.setUpdateTime(LocalDateTime.now());
+        employee.setUpdateUser(BaseContext.getCurrentId());
+        
+        employeeMapper.update(employee);
+    }
+
+在实现启用禁用员工账号功能时，已实现employeeMapper.update(employee)，所以在此无需写Mapper层代码
+
+
+
 
