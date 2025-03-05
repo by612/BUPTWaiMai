@@ -1267,4 +1267,85 @@ ThreadLocal为每个线程提供单独一份存储空间，具有线程隔离的
         converters.add(0, converter);
     }
 
+在sky-common模块中定义了时间格式
+
+    public static final String DEFAULT_DATE_FORMAT = "yyyy-MM-dd";
+    public static final String DEFAULT_DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm:ss";
+    // public static final String DEFAULT_DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm";
+    public static final String DEFAULT_TIME_FORMAT = "HH:mm:ss";
+
+
+## 启用禁用员工账号
+在员工管理列表页面，可以对某个员工账号进行启用或者禁用操作。账号禁用的员工不能登录系统，启用后的员工可以正常登录
+如果某个员工账号状态为正常，则按钮显示为 "禁用"，如果员工账号状态为已禁用，则按钮显示为"启用"
+
+**接口设计**
+1. 路径参数携带状态值
+2. 携带状态值的同时把ID传递过去，明确对哪个用户进行操作
+3. 将返回数据code状态设为必须，其他设为非必须
+
+**Controller层**
+在sky-server模块中，根据接口设计中的请求参数形式对应的在EmployeeController中创建启用禁用员工账号的方法
+
+    /**
+     * 启用禁用员工账号
+     */
+    @PostMapping("/status/{status}")
+    @ApiOperation("启用禁用员工账号")
+    public Result startOrStop(@PathVariable Integer status, Long id) {
+        log.info("启用禁用员工账号：{}, {}", status, id);
+        employeeService.startOrStop(status, id); // TODO
+        return Result.success();
+    }
+
+**Service层接口**
+在EmployeeService接口中声明启用禁用员工账号的业务方法
+
+    /**
+     * 启用禁用员工账号
+     */
+    void startOrStop(Integer status, Long id);
+
+**Service层实现类**
+在EmployeeServiceImpl中实现启用禁用员工账号的业务方法
+
+    /**
+     * 启用禁用员工账号
+     */
+    @Override
+    public void startOrStop(Integer status, Long id) {
+        Employee employee = Employee.builder()
+                .status(status)
+                .id(id)
+                .build();
+
+        employeeMapper.update(employee);
+    }
+
+**Mapper层**
+在EmployeeMapper接口中声明update方法
+
+	/**
+     * 根据主键动态修改属性
+     * @param employee
+     */
+    void update(Employee employee);
+
+在EmployeeMapper.xml中编写SQL
+
+    <update id="update" parameterType="Employee">
+        update employee
+        <set>
+            <if test="name != null">name = #{name},</if>
+            <if test="username != null">username = #{username},</if>
+            <if test="password != null">password = #{password},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="sex != null">sex = #{sex},</if>
+            <if test="idNumber != null">id_Number = #{idNumber},</if>
+            <if test="updateTime != null">update_Time = #{updateTime},</if>
+            <if test="updateUser != null">update_User = #{updateUser},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        where id = #{id}
+    </update>
 
