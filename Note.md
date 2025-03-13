@@ -1441,6 +1441,194 @@ ThreadLocal为每个线程提供单独一份存储空间，具有线程隔离的
 
 在实现启用禁用员工账号功能时，已实现employeeMapper.update(employee)，所以在此无需写Mapper层代码
 
+## 导入分类模块功能
+后台系统中可以管理分类信息，分类包括两种类型，分别是菜品分类和套餐分类
 
+**菜品分类**
+- 新增菜品分类：当我们在后台系统中添加菜品时需要选择一个菜品分类，在移动端也会按照菜品分类来展示对应的菜品
+- 菜品分类分页查询：系统中的分类很多的时候，如果在一个页面中全部展示出来会显得比较乱，不便于查看，所以一般的系统中都会以分页的方式来展示列表数据
+- 根据ID删除菜品分类：在分类管理列表页面，可以对某个分类进行删除操作，需要注意的是当分类关联了菜品或者套餐时，此分类不允许删除
+- 修改菜品分类：在分类管理列表页面点击修改按钮，弹出修改窗口，在修改窗口回显分类信息并进行修改，最后点击确定按钮完成修改操作
+- 启用禁用菜品分类：在分类管理列表页面，可以对某个分类进行启用或者禁用操作
+- 分类类型查询：当点击分类类型下拉框时，从数据库中查询所有的菜品分类数据进行展示
 
+**业务规则**
+- 分类名称必须是唯一的
+- 分类按照类型可以分为菜品分类和套餐分类
+- 新添加的分类状态默认为“禁用”
+
+**接口设计**
+菜品分类模块共涉及6个接口
+- 新增分类
+- 分类分页查询
+- 根据ID删除分类
+- 修改分类
+- 启用禁用分类
+- 根据类型查询分类
+
+**Mapper层**
+DishMapper.java
+
+    package com.sky.mapper;
+    
+    import org.apache.ibatis.annotations.Mapper;
+    import org.apache.ibatis.annotations.Select;
+    
+    @Mapper
+    public interface DishMapper {
+    
+        /**
+         * 根据分类ID查询菜品数量
+         */
+        @Select("select count(id) from dish where category_id = #{categoryId}")
+        Integer countByCategoryId(Long categoryId);
+    
+    }
+
+SetmealMapper.java
+
+    package com.sky.mapper;
+    
+    import org.apache.ibatis.annotations.Mapper;
+    import org.apache.ibatis.annotations.Select;
+    
+    @Mapper
+    public interface SetmealMapper {
+    
+        /**
+         * 根据分类id查询套餐的数量
+         * @param id
+         * @return
+         */
+        @Select("select count(id) from setmeal where category_id = #{categoryId}")
+        Integer countByCategoryId(Long id);
+    
+    }
+
+CategoryMapper.java
+
+    package com.sky.mapper;
+    
+    import com.github.pagehelper.Page;
+    import com.sky.dto.CategoryPageQueryDTO;
+    import com.sky.entity.Category;
+    import org.apache.ibatis.annotations.Delete;
+    import org.apache.ibatis.annotations.Insert;
+    import org.apache.ibatis.annotations.Mapper;
+    
+    import java.util.List;
+    
+    @Mapper
+    public interface CategoryMapper {
+
+        // 插入数据
+        @Insert("insert into category(type, name, sort, status, create_time, update_time, create_user, update_user)" +
+                " VALUES" +
+                " (#{type}, #{name}, #{sort}, #{status}, #{createTime}, #{updateTime}, #{createUser}, #{updateUser})")
+        void insert(Category category);
+
+        // 分页查询
+        Page<Category> pageQuery(CategoryPageQueryDTO categoryPageQueryDTO);
+
+        // 根据ID删除分类
+        @Delete("delete from category where id = #{id}")
+        void deleteById(Long id);
+
+        // 根据ID修改分类
+        void update(Category category);
+
+        // 根据类型查询分类
+        List<Category> list(Integer type);
+    }
+
+进入到resources/mapper目录下，CategoryMapper.xml’
+
+    <?xml version="1.0" encoding="UTF-8" ?>
+    <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+            "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
+    <mapper namespace="com.sky.mapper.CategoryMapper">
+    
+        <select id="pageQuery" resultType="com.sky.entity.Category">
+            select * from category
+            <where>
+                <if test="name != null and name != ''">
+                    and name like concat('%',#{name},'%')
+                </if>
+                <if test="type != null">
+                    and type = #{type}
+                </if>
+            </where>
+            order by sort asc , create_time desc
+        </select>
+    
+        <update id="update" parameterType="Category">
+            update category
+            <set>
+                <if test="type != null">
+                    type = #{type},
+                </if>
+                <if test="name != null">
+                    name = #{name},
+                </if>
+                <if test="sort != null">
+                    sort = #{sort},
+                </if>
+                <if test="status != null">
+                    status = #{status},
+                </if>
+                <if test="updateTime != null">
+                    update_time = #{updateTime},
+                </if>
+                <if test="updateUser != null">
+                    update_user = #{updateUser}
+                </if>
+            </set>
+            where id = #{id}
+        </update>
+    
+        <select id="list" resultType="Category">
+            select * from category
+            where status = 1
+            <if test="type != null">
+                and type = #{type}
+            </if>
+            order by sort asc,create_time desc
+        </select>
+    </mapper>
+
+**Service层**
+CategoryService.java
+
+    package com.sky.service;
+    
+    import com.sky.dto.CategoryDTO;
+    import com.sky.dto.CategoryPageQueryDTO;
+    import com.sky.entity.Category;
+    import com.sky.result.PageResult;
+    import java.util.List;
+    
+    public interface CategoryService {
+    // 新增分类
+    void save(CategoryDTO categoryDTO);
+    
+        // 分页查询
+        PageResult pageQuery(CategoryPageQueryDTO categoryPageQueryDTO);
+    
+        // 根据ID删除分类
+        void deleteById(Long id);
+    
+        // 修改分类
+        void update(CategoryDTO categoryDTO);
+    
+        // 启用、禁用分类
+        void startOrStop(Integer status, Long id);
+    
+        // 根据类型查询分类
+        List<Category> list(Integer type);
+    }
+
+EmployeeServiceImpl.java没有变化
+
+**Controller层**
+CategoryController.java
 

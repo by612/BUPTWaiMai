@@ -1,13 +1,13 @@
 package com.sky.controller.admin;
 
 import com.sky.constant.JwtClaimsConstant;
-import com.sky.dto.EmployeeLoginDTO;
-import com.sky.dto.EmployeeDTO;
-import com.sky.dto.EmployeePageQueryDTO;
+import com.sky.dto.*;
+import com.sky.entity.Category;
 import com.sky.entity.Employee;
 import com.sky.properties.JwtProperties;
 import com.sky.result.PageResult;
 import com.sky.result.Result;
+import com.sky.service.CategoryService;
 import com.sky.service.EmployeeService;
 import com.sky.utils.JwtUtil;
 import com.sky.vo.EmployeeLoginVO;
@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
 
 /**
  * 员工管理
